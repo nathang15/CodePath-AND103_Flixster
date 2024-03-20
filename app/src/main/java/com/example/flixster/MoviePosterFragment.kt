@@ -16,11 +16,12 @@ import com.codepath.asynchttpclient.callback.JsonHttpResponseHandler
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import okhttp3.Headers
+import org.json.JSONArray
 import org.json.JSONObject
 
 private const val API_KEY = "a07e22bc18f5cb106bfe4cc1f83ad8ed"
 
-class MoviePosterFragment : Fragment(), OnListFragmentInteractionListener {
+class MoviePosterFragment : Fragment() {
     /*
      * Constructing the view
      */
@@ -48,7 +49,7 @@ class MoviePosterFragment : Fragment(), OnListFragmentInteractionListener {
 
         // Using the client, perform the HTTP request
         client[
-                "https://api.themoviedb.org/3/movie/now_playing?&api_key=a07e22bc18f5cb106bfe4cc1f83ad8ed",
+                "https://api.themoviedb.org/3/movie/popular?&api_key=a07e22bc18f5cb106bfe4cc1f83ad8ed",
                 params,
                 object : JsonHttpResponseHandler()
 
@@ -62,16 +63,28 @@ class MoviePosterFragment : Fragment(), OnListFragmentInteractionListener {
                 // The wait for a response is over
                 progressBar.hide()
 
-                val moviesJSON : String = json.jsonObject.get("results").toString() // ?
-                val gson = Gson()
-                val arrayMovieType = object : TypeToken<List<MoviePoster>>() {}.type // treat as a list of movies
+                // Parse JSON into Models
+                val resultsJSON : JSONArray = json.jsonObject.getJSONArray("results")
 
-                val models : List<MoviePoster> = gson.fromJson(moviesJSON, arrayMovieType) // call fromJson using your data and type
+                val models : MutableList<MoviePoster> = mutableListOf()
 
-                recyclerView.adapter = MovieRecyclerViewAdapter(models, this@MoviePosterFragment)
+                for(i in 0 until resultsJSON.length()){
+                    val movieJson = resultsJSON.getJSONObject(i)
+                    models.add(
+                        MoviePoster(
+                            movieJson.getString("poster_path"),
+                            movieJson.getString("original_title"),
+                            movieJson.get("vote_average") as Number,
+                            movieJson.getString("overview")
+                        )
+                    )
+                }
+
+                val context = view?.context
+                recyclerView.adapter = context?.let { MovieRecyclerViewAdapter(it,models) }
 
                 // Look for this in Logcat:
-                Log.d("MoviesFragment", "response successful")
+                Log.d("MovieFragment", "response successful")
             }
 
             /*
@@ -94,10 +107,5 @@ class MoviePosterFragment : Fragment(), OnListFragmentInteractionListener {
             }
         }]
 
-    }
-
-
-    override fun onItemClick(item: MoviePoster) {
-        Toast.makeText(context, "test: " + item.title, Toast.LENGTH_LONG).show()
     }
 }
